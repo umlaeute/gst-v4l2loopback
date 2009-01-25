@@ -1,4 +1,4 @@
-using GLib;
+using GLib,Gst;
 
 public class Test.HelloObject : GLib.Object {
 
