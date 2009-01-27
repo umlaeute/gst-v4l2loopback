@@ -1,11 +1,7 @@
 using Gst, GLib;
 
-// compile with:
-// valac --pkg gstreamer-0.10 --pkg gstreamer-video-0.10 gst-app.vala
-
 /** 
-Class that inherits from Basetransform. It should be easier to implement than
-subclassing Element, but still doesn't work.
+Class that inherits from VideoFilter. It should be easier to implement than
 */
 class MyAdvancedTransform : Gst.VideoFilter
 {
