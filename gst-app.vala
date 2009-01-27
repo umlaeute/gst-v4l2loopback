@@ -6,10 +6,13 @@ public class VideoSample : Window {
     private Pipeline pipeline;//our custom gstreamer pipleine
     private Element src; //source element of pipline 
     private Element sink;//sink element of pipeline
+    private Element v4lsink;//our v4lsink
     private Element filter;//our test element which just checks it can see data
 
     construct {
+        GLib.debug("app_construct");
         MyAdvancedTransform.register();
+        v4lSinkLoopback.register();
         create_widgets ();
         setup_gst_pipeline ();
     }
@@ -37,12 +40,14 @@ public class VideoSample : Window {
     }
 
     private void setup_gst_pipeline () {
-        this.pipeline = (Pipeline) new Pipeline ("mypipeline");//now I am looking at it and think, maybe it is better than _m suffix
+        GLib.debug("app setup_pipeline");
+        this.pipeline = (Pipeline) new Pipeline ("mypipeline");//now I am looking at using this all the time and think, maybe it is better than _m suffix
         this.src = ElementFactory.make ("videotestsrc", "video");//so for this project will use this. for calling class members
         this.sink = ElementFactory.make ("xvimagesink", "sink");
         this.filter = ElementFactory.make("MyAdvancedTransform", "mymegafilter");
-        this.pipeline.add_many (this.src, this.filter, this.sink);
-        this.src.link (this.filter);this.filter.link(this.sink);
+        this.v4lsink = ElementFactory.make("v4lSinkLoopback","myv4lsink");
+        this.pipeline.add_many (this.src, this.filter, /*this.sink,*/this.v4lsink);
+        this.src.link (this.filter);this.filter.link(this.v4lsink);
     }
 
     private void on_play () {
