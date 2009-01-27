@@ -1,35 +1,67 @@
-using GLib,Gst;
+using GLib,Gst,Gtk;
 
-public void main (string[] args) {
-    Element src;
-    Element sink;
-    Pipeline pipeline;
+public class VideoSample : Window {
 
-    // Initializing GStreamer
-    Gst.init (ref args);
+    private DrawingArea drawing_area;
+    private Pipeline pipeline;
+    private Element src;
+    private Element sink;
 
-    // Creating pipeline and elements
-    // NOTE: The return type of the pipeline construction method is Element,
-    // not Pipeline, so we have to cast
-    pipeline = (Pipeline) new Pipeline ("test");
-    src = ElementFactory.make ("audiotestsrc", "my_src");
-    sink = ElementFactory.make ("autoaudiosink", "my_sink");
+    construct {
+        create_widgets ();
+        setup_gst_pipeline ();
+    }
 
-    // Adding elements to pipeline
-    pipeline.add_many (src, sink);
+    private void create_widgets () {
+        var vbox = new VBox (false, 0);
+        this.drawing_area = new DrawingArea ();
+        this.drawing_area.set_size_request (300, 150);
+        vbox.pack_start (this.drawing_area, true, true, 0);
 
-    // Linking source to sink
-    src.link (sink);
+        var play_button = new Button.from_stock (STOCK_MEDIA_PLAY);
+        play_button.clicked += on_play;
+        var stop_button = new Button.from_stock (STOCK_MEDIA_STOP);
+        stop_button.clicked += on_stop;
+        var quit_button = new Button.from_stock (STOCK_QUIT);
+        quit_button.clicked += Gtk.main_quit;
 
-    // Setting waveform to square
-    src.set ("wave", 1);
+        var bb = new HButtonBox ();
+        bb.add (play_button);
+        bb.add (stop_button);
+        bb.add (quit_button);
+        vbox.pack_start (bb, false, true, 0);
 
-    // Set pipeline state to PLAYING
-    pipeline.set_state (State.PLAYING);
+        add (vbox);
+    }
 
-    // Creating a GLib main loop with a default context
-    var loop = new MainLoop (null, false);
+    private void setup_gst_pipeline () {
+        this.pipeline = (Pipeline) new Pipeline ("mypipeline");
+        this.src = ElementFactory.make ("videotestsrc", "video");
+        this.sink = ElementFactory.make ("xvimagesink", "sink");
+        this.pipeline.add_many (this.src, this.sink);
+        this.src.link (this.sink);
+    }
 
-    // Start GLib mainloop
-    loop.run ();
+    private void on_play () {
+        ((XOverlay) this.sink).set_xwindow_id (
+                Gdk.x11_drawable_get_xid (this.drawing_area.window));
+        this.pipeline.set_state (State.PLAYING);
+    }
+
+    private void on_stop () {
+        this.pipeline.set_state (State.READY);
+    }
+
+    public static int main (string[] args) {
+        Gst.init (ref args);
+        Gtk.init (ref args);
+
+        var sample = new VideoSample ();
+        sample.show_all ();
+
+        Gtk.main ();
+
+        return 0;
+}
+    }
 }
