@@ -1,4 +1,4 @@
-using Gst, GLib;
+using Gst, GLib, v4lsys;
 
 //unknown: 
 //what is the differens between names in different structures?
@@ -38,8 +38,10 @@ public class v4lSinkLoopback : Gst.VideoSink
   };
 
   static StaticPadTemplate pad_factory;//pad factory, used to create an input pad
-  GLib.File device;
-  GLib.OutputStream out_stream;
+  private int output_fd;//output device descriptor
+  private weak v4lsys.video_window vid_win;
+  private weak v4lsys.video_picture vid_pic;
+  private weak v4lsys.video_capability vid_caps;
 
   class construct//element should not be instantiated by operator new, register it and then use ElementFactory.make, it will call construct.
   {
@@ -47,21 +49,34 @@ public class v4lSinkLoopback : Gst.VideoSink
     pad_factory.name_template = "sink";
     pad_factory.direction = PadDirection.SINK;//direction of the pad: can be sink, or src
     pad_factory.presence = PadPresence.ALWAYS;//when pad is available
-    pad_factory.static_caps.str = "ANY";//types pad accepts
+    pad_factory.static_caps.str = "video/x-raw-yuv, width=640, height=480,framerate = (fraction) [ 15, 25 ], buffer_size=1000000";//types pad accepts
     add_pad_template(pad_factory.@get());//actual pad registration, this function is inherited from Element class 
     set_details(details);//set details for v4lSinkLoopback(this klass)
  }
 
   construct
   {
-    this.device = GLib.File.new_for_path("new_file");
-    this.out_stream = device.replace(null,false,GLib.FileCreateFlags.NONE,null);
+    this.output_fd = v4lsys.open("/dev/video1", v4lsys.O_RDWR);
+    assert(this.output_fd>=0); GLib.debug("device opened");
+    int ret_code = v4lsys.ioctl(this.output_fd, v4lsys.VIDIOCGCAP, &this.vid_caps);
+    assert(ret_code != -1); GLib.debug("got caps");
+    ret_code = ioctl(this.output_fd, v4lsys.VIDIOCGPICT, &this.vid_pic);
+    assert(ret_code != -1); GLib.debug("got pict");
+    this.vid_pic.palette = v4lsys.VIDEO_PALETTE_RGB24;//TODO(vasaka) make configurable
+    ret_code = ioctl(this.output_fd, v4lsys.VIDIOCSPICT, &this.vid_pic);
+    assert(ret_code != -1); GLib.debug("set pict");
+    ret_code = ioctl(this.output_fd, v4lsys.VIDIOCGWIN, &this.vid_win);
+    assert(ret_code != -1); GLib.debug("got win");
+    this.vid_win.width = 640;//TODO(vasaka) make configurable
+    this.vid_win.height = 480;
+    ret_code = ioctl(this.output_fd, v4lsys.VIDIOCSWIN, &this.vid_win);
+    assert(ret_code != -1); GLib.debug("set win");
   }
 
   public override Gst.FlowReturn render(Gst.Buffer buf)
   {
-    GLib.debug("Data is sinked out!");//data just passes through, we leave a messge
-    out_stream.write(buf.data,buf.size,null);//TODO(vasaka) get rid of a warning
+    stdout.printf("%u\n", buf.size);
+    v4lsys.write(this.output_fd, buf.data, buf.size);
     return Gst.FlowReturn.OK;
   }
 }
