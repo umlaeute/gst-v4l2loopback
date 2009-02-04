@@ -42,7 +42,9 @@ public class v4lSinkLoopback : Gst.VideoSink
   private weak v4lsys.video_window vid_win;
   private weak v4lsys.video_picture vid_pic;
   private weak v4lsys.video_capability vid_caps;
-  private Gst.Buffer buffer;
+  private uchar[] buffer;
+  private int buffer_position;
+  private int buffer_length;
 
   //element should not be instantiated by operator new, register it and then use ElementFactory.make, it will call construct.
   class construct  {
@@ -50,21 +52,20 @@ public class v4lSinkLoopback : Gst.VideoSink
     pad_factory.name_template = "sink";
     pad_factory.direction = PadDirection.SINK;//direction of the pad: can be sink, or src
     pad_factory.presence = PadPresence.ALWAYS;//when pad is available
-    pad_factory.static_caps.str = "video/x-raw-yuv, width=640, height=480";//types pad accepts
+    pad_factory.static_caps.str = "video/x-raw-rgb, width=640, height=480";//types pad accepts
     add_pad_template(pad_factory.@get());//actual pad registration, this function is inherited from Element class 
     set_details(details);//set details for v4lSinkLoopback(this klass)
   }
 
   construct
   {
-    //this.sinkpad.set_bufferalloc_function(abuffer_alloc);
     this.output_fd = v4lsys.open("/dev/video1", v4lsys.O_RDWR);
     assert(this.output_fd>=0); GLib.debug("device opened");
     int ret_code = v4lsys.ioctl(this.output_fd, v4lsys.VIDIOCGCAP, &this.vid_caps);
     assert(ret_code != -1); GLib.debug("got caps");
     ret_code = ioctl(this.output_fd, v4lsys.VIDIOCGPICT, &this.vid_pic);
     assert(ret_code != -1); GLib.debug("got pict");
-    this.vid_pic.palette = v4lsys.VIDEO_PALETTE_YUV420P;//TODO(vasaka) make configurable
+    this.vid_pic.palette = v4lsys.VIDEO_PALETTE_RGB24;//TODO(vasaka) make configurable
     ret_code = ioctl(this.output_fd, v4lsys.VIDIOCSPICT, &this.vid_pic);
     assert(ret_code != -1); GLib.debug("set pict");
     ret_code = ioctl(this.output_fd, v4lsys.VIDIOCGWIN, &this.vid_win);
@@ -73,23 +74,42 @@ public class v4lSinkLoopback : Gst.VideoSink
     this.vid_win.height = 480;
     ret_code = ioctl(this.output_fd, v4lsys.VIDIOCSWIN, &this.vid_win);
     assert(ret_code != -1); GLib.debug("set win");
+
+    this.buffer_length = 640*480*3;
+    this.buffer_position = 0;
+    this.buffer = new uint8[this.buffer_length*2];
   }
 
   public override Gst.FlowReturn render(Gst.Buffer buf)
   {
-    stdout.printf("%u\n", buf.size);
-    v4lsys.write(this.output_fd, buf.data, buf.size);
+    stdout.printf("%u\n",buf.size);
+    if (buf.size+this.buffer_position > this.buffer_length)
+    {
+      for(int i = 0;i<this.buffer_length-this.buffer_position;++i)
+      {
+        this.buffer[this.buffer_position+i] = buf.data[i];
+        this.buffer[this.buffer_position+i+this.buffer_length] = buf.data[i];
+      }
+      for(int i=0;i<(int)buf.size - this.buffer_length + this.buffer_position;++i)
+      {
+        this.buffer[i] = buf.data[this.buffer_length-this.buffer_position+i];
+        this.buffer[i+this.buffer_length] = buf.data[this.buffer_length-this.buffer_position+i];
+      }
+
+      v4lsys.write(this.output_fd, &this.buffer[0/*this.buffer_position*/], this.buffer_length);
+      this.buffer_position = (int)buf.size - this.buffer_length + this.buffer_position;
+    }
+    else
+    {
+      for(int i = 0;i<buf.size;++i)
+      {
+        this.buffer[this.buffer_position+i] = buf.data[i];
+        this.buffer[this.buffer_position+i+this.buffer_length] = buf.data[i];
+      }
+      this.buffer_position = this.buffer_position + (int)buf.size;
+    }
     return Gst.FlowReturn.OK;
   }
-  public override Gst.FlowReturn buffer_alloc(uint64 offset, uint size, Gst.Caps caps, out unowned Gst.Buffer buf)
-  {
-    GLib.debug("buffer_alloc");
-    this.buffer = Gst.Buffer.try_new_and_alloc(640*480*3);
-    stdout.printf("created buffer of size%u\n", this.buffer.size);
-    buf = this.buffer;
-    return Gst.FlowReturn.OK;//TODO(vasaka) check if allocate return value
-  }
-
 }
 }
 
