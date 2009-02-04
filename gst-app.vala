@@ -1,46 +1,31 @@
 using GLib,Gst;
 
-public class VideoSinkTest : GLib.Object 
+public class VideoSinkTest : GLib.Object
 {
 
   private Pipeline pipeline;//our custom gstreamer pipleine
-  private Element src; //source element of pipline 
-  private Element v4lsink;//our v4lsink
-  private Element effect;
-  private Element colorspace;
-  private Bin decoder;
+  private Gst.XML stored_pipeline; //we load pipeline from external xml file
+
   private MainLoop loop = new MainLoop(null, false);
 
-  construct 
+  //registers v4lsink plugin and starts gstreamer pipeline
+  construct
   {
     GLib.debug("app_construct");
     v4lSinkLoopback.register();
-    setup_gst_pipeline ();
+    this.setup_gst_pipeline ();
     this.pipeline.set_state (State.PLAYING);
     GLib.debug("app_constructed");
   }
-
-  /** called by decodebin when a new pad is created */
-  private void on_new_pad(Pad pad)
-  {
-    GLib.debug("on new pad");
-    this.decoder.link(this.v4lsink);
-  }
-
+  // initializing pipeline from xml file
   private void setup_gst_pipeline ()
   {
     GLib.debug("app setup_pipeline");
-    this.pipeline = (Pipeline) new Pipeline ("mypipeline");//now I am looking at using this all the time and think, maybe it is better than _m suffix
-    this.src = ElementFactory.make ("v4l2src", "video");//so for this project will use this. for calling class members
-    this.src.set("blocksize",640*480*3);
-    this.v4lsink = ElementFactory.make("v4lSinkLoopback","myv4lsink");
-    this.decoder = (Bin)ElementFactory.make("decodebin", "decoder");
-    this.colorspace = ElementFactory.make("ffmpegcolorspace", "colorspace");
-    this.effect = ElementFactory.make("edgetv","effect");
-    Signal.connect_swapped(decoder, "new-decoded-pad", (Callback)on_new_pad, this);
-    this.pipeline.add_many (this.src, this.colorspace, this.v4lsink);//add elements to pipeline
-    this.src.link(this.colorspace); this.colorspace.link(this.v4lsink);
-    Gst.XML.write_file ((Element)this.pipeline, GLib.FileStream.open ("xmlPipe.gst", "w"));
+    this.stored_pipeline = new Gst.XML();
+    bool ret = this.stored_pipeline.parse_file("xmlPipe.gst", null);
+    assert(ret);
+    this.pipeline = (Pipeline)this.stored_pipeline.get_element ("mypipeline");
+    assert(this.pipeline != null);
   }
 
   public int run(string[] args) {
@@ -49,7 +34,7 @@ public class VideoSinkTest : GLib.Object
   }
 
 
-  public static int main (string[] args) 
+  public static int main (string[] args)
   {
     Gst.init(ref args);
     var app = new VideoSinkTest();
