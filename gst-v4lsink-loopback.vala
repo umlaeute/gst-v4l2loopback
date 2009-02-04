@@ -39,9 +39,8 @@ public class v4lSinkLoopback : Gst.VideoSink
 
   static StaticPadTemplate pad_factory;//pad factory, used to create an input pad
   private int output_fd;//output device descriptor
-  private weak v4lsys.video_window vid_win;
-  private weak v4lsys.video_picture vid_pic;
-  private weak v4lsys.video_capability vid_caps;
+  private weak v4lsys.v4l2_capability vid_caps;
+  private weak v4lsys.v4l2_format vid_format;
   private uchar[] buffer;
   private int buffer_position;
   private int buffer_length;
@@ -52,7 +51,7 @@ public class v4lSinkLoopback : Gst.VideoSink
     pad_factory.name_template = "sink";
     pad_factory.direction = PadDirection.SINK;//direction of the pad: can be sink, or src
     pad_factory.presence = PadPresence.ALWAYS;//when pad is available
-    pad_factory.static_caps.str = "video/x-raw-rgb, width=640, height=480";//types pad accepts
+    pad_factory.static_caps.str = "video/x-raw-yuv, width=640, height=480";//types pad accepts
     add_pad_template(pad_factory.@get());//actual pad registration, this function is inherited from Element class 
     set_details(details);//set details for v4lSinkLoopback(this klass)
   }
@@ -61,19 +60,14 @@ public class v4lSinkLoopback : Gst.VideoSink
   {
     this.output_fd = v4lsys.open("/dev/video1", v4lsys.O_RDWR);
     assert(this.output_fd>=0); GLib.debug("device opened");
-    int ret_code = v4lsys.ioctl(this.output_fd, v4lsys.VIDIOCGCAP, &this.vid_caps);
+    int ret_code = v4lsys.ioctl(this.output_fd, v4lsys.VIDIOC_QUERYCAP, &this.vid_caps);
     assert(ret_code != -1); GLib.debug("got caps");
-    ret_code = ioctl(this.output_fd, v4lsys.VIDIOCGPICT, &this.vid_pic);
-    assert(ret_code != -1); GLib.debug("got pict");
-    this.vid_pic.palette = v4lsys.VIDEO_PALETTE_RGB24;//TODO(vasaka) make configurable
-    ret_code = ioctl(this.output_fd, v4lsys.VIDIOCSPICT, &this.vid_pic);
-    assert(ret_code != -1); GLib.debug("set pict");
-    ret_code = ioctl(this.output_fd, v4lsys.VIDIOCGWIN, &this.vid_win);
-    assert(ret_code != -1); GLib.debug("got win");
-    this.vid_win.width = 640;//TODO(vasaka) make configurable
-    this.vid_win.height = 480;
-    ret_code = ioctl(this.output_fd, v4lsys.VIDIOCSWIN, &this.vid_win);
-    assert(ret_code != -1); GLib.debug("set win");
+    this.vid_format.type = v4lsys.v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    this.vid_format.fmt.pix.width = 640;
+    this.vid_format.fmt.pix.height = 480;
+    this.vid_format.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
+    ret_code = ioctl(this.output_fd, v4lsys.VIDIOC_S_FMT, &this.vid_format);
+    assert(ret_code != -1); GLib.debug("set format");
 
     this.buffer_length = 640*480*3;
     this.buffer_position = 0;
@@ -82,32 +76,7 @@ public class v4lSinkLoopback : Gst.VideoSink
 
   public override Gst.FlowReturn render(Gst.Buffer buf)
   {
-    stdout.printf("%u\n",buf.size);
-    if (buf.size+this.buffer_position > this.buffer_length)
-    {
-      for(int i = 0;i<this.buffer_length-this.buffer_position;++i)
-      {
-        this.buffer[this.buffer_position+i] = buf.data[i];
-        this.buffer[this.buffer_position+i+this.buffer_length] = buf.data[i];
-      }
-      for(int i=0;i<(int)buf.size - this.buffer_length + this.buffer_position;++i)
-      {
-        this.buffer[i] = buf.data[this.buffer_length-this.buffer_position+i];
-        this.buffer[i+this.buffer_length] = buf.data[this.buffer_length-this.buffer_position+i];
-      }
-
-      v4lsys.write(this.output_fd, &this.buffer[0/*this.buffer_position*/], this.buffer_length);
-      this.buffer_position = (int)buf.size - this.buffer_length + this.buffer_position;
-    }
-    else
-    {
-      for(int i = 0;i<buf.size;++i)
-      {
-        this.buffer[this.buffer_position+i] = buf.data[i];
-        this.buffer[this.buffer_position+i+this.buffer_length] = buf.data[i];
-      }
-      this.buffer_position = this.buffer_position + (int)buf.size;
-    }
+    v4lsys.write(this.output_fd, buf, buf.size);
     return Gst.FlowReturn.OK;
   }
 }
