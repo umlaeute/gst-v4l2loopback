@@ -27,7 +27,7 @@ public class VideoSinkTest : GLib.Object
     this.decoder.link(this.v4lsink);
   }
 
-  private void setup_gst_pipeline () 
+  private void setup_gst_pipeline ()
   {
     GLib.debug("app setup_pipeline");
     this.pipeline = (Pipeline) new Pipeline ("mypipeline");//now I am looking at using this all the time and think, maybe it is better than _m suffix
@@ -39,9 +39,8 @@ public class VideoSinkTest : GLib.Object
     this.effect = ElementFactory.make("edgetv","effect");
     Signal.connect_swapped(decoder, "new-decoded-pad", (Callback)on_new_pad, this);
     this.pipeline.add_many (this.src, this.colorspace, this.v4lsink);//add elements to pipeline
-    this.src.link(this.colorspace); this.colorspace.link(this.v4lsink);;
-    //this.src.link (this.filter);
-    //this.filter.link(this.v4lsink);//link everithing
+    this.src.link(this.colorspace); this.colorspace.link(this.v4lsink);
+    Gst.XML.write_file ((Element)this.pipeline, GLib.FileStream.open ("xmlPipe.gst", "w"));
   }
 
   public int run(string[] args) {
