@@ -11,6 +11,7 @@ using Gst, GLib, v4lsys;
 /** 
   Class that inherits from VideoSink. It should be easier to implement than subclassing Element.
  */
+//TODO(vasaka) change v4l to v4l2
 public class v4lSinkLoopback : Gst.VideoSink
 {
  //must always do the same thing for an element registration, as data is cached in central registry, so function is static
@@ -65,7 +66,7 @@ public class v4lSinkLoopback : Gst.VideoSink
     this.vid_format.type = v4lsys.v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_OUTPUT;
     this.vid_format.fmt.pix.width = 640;
     this.vid_format.fmt.pix.height = 480;
-    this.vid_format.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
+    this.vid_format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
     ret_code = ioctl(this.output_fd, v4lsys.VIDIOC_S_FMT, &this.vid_format);
     assert(ret_code != -1); GLib.debug("set format");
 
@@ -76,7 +77,7 @@ public class v4lSinkLoopback : Gst.VideoSink
 
   public override Gst.FlowReturn render(Gst.Buffer buf)
   {
-    v4lsys.write(this.output_fd, buf, buf.size);
+    v4lsys.write(this.output_fd, buf.data, buf.size);
     return Gst.FlowReturn.OK;
   }
 }

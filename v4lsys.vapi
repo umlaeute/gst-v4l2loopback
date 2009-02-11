@@ -61,6 +61,8 @@ public const int VIDIOC_S_FMT;
 public const uint32 V4L2_PIX_FMT_YUV420;
 [CCode (cheader_filename = "linux/videodev2.h")]
 public const uint32 V4L2_PIX_FMT_RGB24;
+[CCode (cheader_filename = "linux/videodev2.h")]
+public const uint32 V4L2_PIX_FMT_YUYV;
 [CCode (cname="struct v4l2_capability", cheader_filename = "linux/videodev2.h")]
 public struct v4l2_capability
 {

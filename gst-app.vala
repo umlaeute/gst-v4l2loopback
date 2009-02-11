@@ -4,10 +4,13 @@ public class VideoSinkTest : GLib.Object
 {
 
   private Pipeline pipeline;//our custom gstreamer pipleine
-  private Gst.XML stored_pipeline; //we load pipeline from external xml file
-
+  public string pipeline_string {get; construct;}//create pipeline from string description
   private MainLoop loop = new MainLoop(null, false);
 
+  public VideoSinkTest(string param)
+  {
+    this.pipeline_string = param;
+  }
   //registers v4lsink plugin and starts gstreamer pipeline
   construct
   {
@@ -21,10 +24,7 @@ public class VideoSinkTest : GLib.Object
   private void setup_gst_pipeline ()
   {
     GLib.debug("app setup_pipeline");
-    this.stored_pipeline = new Gst.XML();
-    bool ret = this.stored_pipeline.parse_file("xmlPipe.gst", null);
-    assert(ret);
-    this.pipeline = (Pipeline)this.stored_pipeline.get_element ("mypipeline");
+    pipeline = (Pipeline)Gst.parse_launch(pipeline_string);
     assert(this.pipeline != null);
   }
 
@@ -37,7 +37,12 @@ public class VideoSinkTest : GLib.Object
   public static int main (string[] args)
   {
     Gst.init(ref args);
-    var app = new VideoSinkTest();
+    string param;
+    if (args.length>1)
+      param = args[1];
+    else
+      param = "v4l2src device=/dev/video0 ! ffmpegcolorspace ! v4lSinkLoopback";
+    var app = new VideoSinkTest(param);
     return app.run(args);
   }
 }
