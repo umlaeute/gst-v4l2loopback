@@ -1,0 +1,10 @@
+--- INSTALL ---
+install vala and build with
+./build.sh 
+#TODO(vasaka) geather dependencies here
+--- RUN ---
+./gst-app
+
+now it should transfer data from /dev/video0 to /dev/video1
+
+for this moment format is hardcoded to yuv 640x480
