@@ -52,7 +52,7 @@ public class v4lSinkLoopback : Gst.VideoSink
     pad_factory.name_template = "sink";
     pad_factory.direction = PadDirection.SINK;//direction of the pad: can be sink, or src
     pad_factory.presence = PadPresence.ALWAYS;//when pad is available
-    pad_factory.static_caps.str = "video/x-raw-yuv, width=640, height=480";//types pad accepts
+    pad_factory.static_caps.str = "video/x-raw-yuv, width=640, height=480,format=(fourcc)YUY2";//types pad accepts
     add_pad_template(pad_factory.@get());//actual pad registration, this function is inherited from Element class 
     set_details(details);//set details for v4lSinkLoopback(this klass)
   }
