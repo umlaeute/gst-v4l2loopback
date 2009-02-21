@@ -70,6 +70,7 @@ public class v4lSinkLoopback : Gst.VideoSink
 
   public override Gst.FlowReturn render(Gst.Buffer buf)
   {
+    //GLib.debug("render");
     v4lsys.write(this.output_fd, buf.data, buf.size);
     return Gst.FlowReturn.OK;
   }
