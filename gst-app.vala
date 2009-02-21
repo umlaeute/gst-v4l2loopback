@@ -20,7 +20,7 @@ public class VideoSinkTest : GLib.Object
     this.pipeline.set_state (State.PLAYING);
     GLib.debug("app_constructed");
   }
-  // initializing pipeline from xml file
+  // initializing pipeline from string
   private void setup_gst_pipeline ()
   {
     GLib.debug("app setup_pipeline");

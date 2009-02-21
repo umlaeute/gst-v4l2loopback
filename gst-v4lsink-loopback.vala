@@ -42,9 +42,6 @@ public class v4lSinkLoopback : Gst.VideoSink
   private int output_fd;//output device descriptor
   private weak v4lsys.v4l2_capability vid_caps;
   private weak v4lsys.v4l2_format vid_format;
-  private uchar[] buffer;
-  private int buffer_position;
-  private int buffer_length;
 
   //element should not be instantiated by operator new, register it and then use ElementFactory.make, it will call construct.
   class construct  {
@@ -52,7 +49,7 @@ public class v4lSinkLoopback : Gst.VideoSink
     pad_factory.name_template = "sink";
     pad_factory.direction = PadDirection.SINK;//direction of the pad: can be sink, or src
     pad_factory.presence = PadPresence.ALWAYS;//when pad is available
-    pad_factory.static_caps.str = "video/x-raw-yuv, width=640, height=480,format=(fourcc)YUY2";//types pad accepts
+    pad_factory.static_caps.str = "video/x-raw-yuv, width=640, height=480, format=(fourcc)YUY2";//types pad accepts
     add_pad_template(pad_factory.@get());//actual pad registration, this function is inherited from Element class 
     set_details(details);//set details for v4lSinkLoopback(this klass)
   }
@@ -69,10 +66,6 @@ public class v4lSinkLoopback : Gst.VideoSink
     this.vid_format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
     ret_code = ioctl(this.output_fd, v4lsys.VIDIOC_S_FMT, &this.vid_format);
     assert(ret_code != -1); GLib.debug("set format");
-
-    this.buffer_length = 640*480*3;
-    this.buffer_position = 0;
-    this.buffer = new uint8[this.buffer_length*2];
   }
 
   public override Gst.FlowReturn render(Gst.Buffer buf)
