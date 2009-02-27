@@ -5,6 +5,15 @@ install vala and build with
 --- RUN ---
 ./gst-app
 
-now it should transfer data from /dev/video0 to /dev/video1
+if you have 640x480 webcam at /dev/video0 you can check result with command
+if you want another resolution - change it in gst-v4lsink-loopback.vala
+$mplayer tv:// -tv device=/dev/video1
+or $luvcview -d /dev/video1 -f yuv
 
-for this moment format is hardcoded to yuv 640x480
+you also can pass custom pipeline with fancy video filters as command line parameter last element in pipelene shoul be v4lSinkLoopback
+
+default pipeline is 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! v4lSinkLoopback'
+if you want to use some effect filters - run this:
+./gst-app 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! effect ! ffmpegcolorspace ! v4lSinkLoopback'
+
+effect is any registered gstreamer vido effect plugin, warptv for example 

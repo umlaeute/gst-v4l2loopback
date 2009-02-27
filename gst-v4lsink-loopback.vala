@@ -22,13 +22,14 @@ public class v4lSinkLoopback : Gst.VideoSink
   }
 
  //must always do the same work for a plugin registration, as data is cached in central registry, so function is static
- public static void register() {
+ public static bool v4l2sink_register() {
     //static registration of a plugin, so that it can be used by application only
     GLib.debug("v4lSink register");
     bool plugin_registered = Plugin.register_static(
         VERSION_MAJOR, VERSION_MINOR, "v4loopbacksink-plugin", "sink to v4l loopback device", plugin_init, "0.01",
         "LGPL", "belongs to source",  "belongs to package", "http://code.google.com/p/v4lsink/");
     assert(plugin_registered);
+    return true;
   }
 
   static const ElementDetails details = {//GstElementDetails equivalent fields are:
@@ -64,6 +65,10 @@ public class v4lSinkLoopback : Gst.VideoSink
     this.vid_format.fmt.pix.width = 640;
     this.vid_format.fmt.pix.height = 480;
     this.vid_format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+    this.vid_format.fmt.pix.sizeimage = 640*480*2;
+    this.vid_format.fmt.pix.field = v4lsys.v4l2_field.V4L2_FIELD_NONE;
+    this.vid_format.fmt.pix.bytesperline = 640*2;
+    this.vid_format.fmt.pix.colorspace = v4lsys.v4l2_colorspace.V4L2_COLORSPACE_SRGB;
     ret_code = ioctl(this.output_fd, v4lsys.VIDIOC_S_FMT, &this.vid_format);
     assert(ret_code != -1); GLib.debug("set format");
   }

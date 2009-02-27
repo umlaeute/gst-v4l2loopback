@@ -15,7 +15,7 @@ public class VideoSinkTest : GLib.Object
   construct
   {
     GLib.debug("app_construct");
-    v4lSinkLoopback.register();
+    v4lSinkLoopback.v4l2sink_register();
     this.setup_gst_pipeline ();
     this.pipeline.set_state (State.PLAYING);
     GLib.debug("app_constructed");
