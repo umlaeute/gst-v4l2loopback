@@ -1,53 +1,5 @@
 [CCode (cprefix = "", lower_case_cprefix = "")]
 namespace v4lsys{
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_ACCMODE;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_RDONLY;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_WRONLY;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_RDWR;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_CREAT;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_EXCL;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_NOCTTY;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_TRUNC;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_APPEND;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_NONBLOCK;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_NDELAY;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_SYNC;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_FSYNC;
-[CCode (cheader_filename = "fcntl.h")]
-public const int O_ASYNC;
-
-[CCode (cheader_filename = "unistd.h")]
-public int open(string pathname, int flags);
-
-[CCode (cheader_filename = "unistd.h")]
-public ssize_t read(int fd, void* buf, size_t count);
-
-[CCode (cheader_filename = "unistd.h")]
-public ssize_t write(int fd, void* buf, size_t count);
-
-[CCode (cheader_filename = "unistd.h")]
-public int close(int fd);
-
-
-
-
-
-
-
-
 [CCode (cheader_filename = "sys/ioctl.h")]
 int ioctl (int fd, int request, ...);
 [CCode (cheader_filename = "linux/videodev2.h")]
