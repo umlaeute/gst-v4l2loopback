@@ -1,5 +1,5 @@
 [CCode (cprefix = "", lower_case_cprefix = "")]
-namespace v4lsys{
+namespace v4l2sys{
 [CCode (cheader_filename = "sys/ioctl.h")]
 int ioctl (int fd, int request, ...);
 [CCode (cheader_filename = "linux/videodev2.h")]
