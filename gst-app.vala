@@ -15,7 +15,7 @@ public class VideoSinkTest : GLib.Object
   construct
   {
     GLib.debug("app_construct");
-    v4lSinkLoopback.v4l2sink_register();
+    V4l2SinkLoopback.v4l2sink_register();
     this.setup_gst_pipeline ();
     this.pipeline.set_state (State.PLAYING);
     GLib.debug("app_constructed");
@@ -41,7 +41,7 @@ public class VideoSinkTest : GLib.Object
     if (args.length>1)
       param = args[1];
     else
-      param = "v4l2src device=/dev/video0 ! ffmpegcolorspace ! v4lSinkLoopback";
+      param = "v4l2src device=/dev/video0 ! ffmpegcolorspace ! V4l2SinkLoopback";
     var app = new VideoSinkTest(param);
     return app.run(args);
   }

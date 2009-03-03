@@ -1,4 +1,4 @@
-using Gst, GLib, Posix, v4l2sys;
+using Gst, GLib, Posix, V4l2;
 
 //unknown: 
 //what is the differens between names in different structures?
@@ -11,14 +11,13 @@ using Gst, GLib, Posix, v4l2sys;
 /** 
   Class that inherits from VideoSink. It should be easier to implement than subclassing Element.
  */
-//TODO(vasaka) change v4l to v4l2
-public class v4lSinkLoopback : Gst.VideoSink
+public class V4l2SinkLoopback : Gst.VideoSink
 {
  //must always do the same thing for an element registration, as data is cached in central registry, so function is static
  public static bool plugin_init(Plugin p) {
     //create element factory and add it to plugin p
     GLib.debug("v4lSink plugin_init");
-    return Element.register(p, "v4lSinkLoopback", Rank.NONE, typeof(v4lSinkLoopback));
+    return Element.register(p, "V4l2SinkLoopback", Rank.NONE, typeof(V4l2SinkLoopback));
   }
 
  //must always do the same work for a plugin registration, as data is cached in central registry, so function is static
@@ -33,7 +32,7 @@ public class v4lSinkLoopback : Gst.VideoSink
   }
 
   static const ElementDetails details = {//GstElementDetails equivalent fields are:
-    "v4lSinkLoopback",//longname
+    "V4l2SinkLoopback",//longname
     "v4lsink",//klass, whatever this means, they say look at klass-draft.txt
     "sink to v4l loopback device",//description
     "vasaka <vasaka at gmail.com>"//me
@@ -41,8 +40,8 @@ public class v4lSinkLoopback : Gst.VideoSink
 
   static StaticPadTemplate pad_factory;//pad factory, used to create an input pad
   private int output_fd;//output device descriptor
-  private weak v4l2sys.v4l2_capability vid_caps;
-  private weak v4l2sys.v4l2_format vid_format;
+  private weak V4l2.Capability vid_caps;
+  private weak V4l2.Format vid_format;
 
   //element should not be instantiated by operator new, register it and then use ElementFactory.make, it will call construct.
   class construct  {
@@ -52,24 +51,24 @@ public class v4lSinkLoopback : Gst.VideoSink
     pad_factory.presence = PadPresence.ALWAYS;//when pad is available
     pad_factory.static_caps.str = "video/x-raw-yuv, width=640, height=480, format=(fourcc)YUY2";//types pad accepts
     add_pad_template(pad_factory.@get());//actual pad registration, this function is inherited from Element class 
-    set_details(details);//set details for v4lSinkLoopback(this klass)
+    set_details(details);//set details for V4l2SinkLoopback(this klass)
   }
 
   construct
   {
     this.output_fd = Posix.open("/dev/video1", Posix.O_RDWR);
     GLib.assert(this.output_fd>=0); GLib.debug("device opened");
-    int ret_code = v4l2sys.ioctl(this.output_fd, v4l2sys.VIDIOC_QUERYCAP, &this.vid_caps);
+    int ret_code = Posix.ioctl(this.output_fd, V4l2.VIDIOC_QUERYCAP, &this.vid_caps);
     GLib.assert(ret_code != -1); GLib.debug("got caps");
-    this.vid_format.type = v4l2sys.v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    this.vid_format.type = V4l2.BufferType.VIDEO_OUTPUT;
     this.vid_format.fmt.pix.width = 640;
     this.vid_format.fmt.pix.height = 480;
-    this.vid_format.fmt.pix.pixelformat = v4l2sys.V4L2_PIX_FMT_YUYV;
+    this.vid_format.fmt.pix.pixelformat = V4l2.PixelFormatType.YUYV;
     this.vid_format.fmt.pix.sizeimage = 640*480*2;
-    this.vid_format.fmt.pix.field = v4l2sys.v4l2_field.V4L2_FIELD_NONE;
+    this.vid_format.fmt.pix.field = V4l2.Field.NONE;
     this.vid_format.fmt.pix.bytesperline = 640*2;
-    this.vid_format.fmt.pix.colorspace = v4l2sys.v4l2_colorspace.V4L2_COLORSPACE_SRGB;
-    ret_code = Posix.ioctl(this.output_fd, v4l2sys.VIDIOC_S_FMT, &this.vid_format);
+    this.vid_format.fmt.pix.colorspace = V4l2.Colorspace.SRGB;
+    ret_code = Posix.ioctl(this.output_fd, V4l2.VIDIOC_S_FMT, &this.vid_format);
     GLib.assert(ret_code != -1); GLib.debug("set format");
   }
 
