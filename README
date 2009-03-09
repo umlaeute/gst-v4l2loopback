@@ -4,7 +4,7 @@ make
 make install
 #TODO(vasaka) geather dependencies here
 --- RUN ---
-gst-app
+v4lsink
 
 if you have 640x480 webcam at /dev/video0 you can check result with command
 if you want another resolution - change it in gst-v4lsink-loopback.vala
@@ -16,6 +16,6 @@ you also can pass custom pipeline with fancy video filters as command line param
 
 default pipeline is 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! v4lSinkLoopback'
 if you want to use some effect filters - run this:
-./gst-app 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! effect ! ffmpegcolorspace ! v4lSinkLoopback'
+v4lsink 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! effect ! ffmpegcolorspace ! v4lSinkLoopback'
 
 effect is any registered gstreamer vido effect plugin, warptv for example 
