@@ -1,14 +1,16 @@
 --- INSTALL ---
-install vala and build with
-./build.sh 
+install vala and build app usual way
+make
+make install
 #TODO(vasaka) geather dependencies here
 --- RUN ---
-./gst-app
+gst-app
 
 if you have 640x480 webcam at /dev/video0 you can check result with command
 if you want another resolution - change it in gst-v4lsink-loopback.vala
 $mplayer tv:// -tv device=/dev/video1
 or $luvcview -d /dev/video1 -f yuv
+or just select /dev/video1 in skype and transmit fun video
 
 you also can pass custom pipeline with fancy video filters as command line parameter last element in pipelene shoul be v4lSinkLoopback
 
