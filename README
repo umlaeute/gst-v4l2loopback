@@ -16,6 +16,6 @@ you also can pass custom pipeline with fancy video filters as command line param
 
 default pipeline is 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! v4lSinkLoopback'
 if you want to use some effect filters - run this:
-v4lsink 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! effect ! ffmpegcolorspace ! v4lSinkLoopback'
+v4lsink 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! effect ! ffmpegcolorspace ! V4l2SinkLoopback'
 
 effect is any registered gstreamer vido effect plugin, warptv for example 
