@@ -1,21 +1,35 @@
 --- INSTALL ---
-install vala and build app usual way
-make
-make install
+
+Install vala and build app usual way
+  $ make
+  $ make install
 #TODO(vasaka) geather dependencies here
+
 --- RUN ---
-v4lsink
 
-if you have 640x480 webcam at /dev/video0 you can check result with command
-if you want another resolution - change it in gst-v4lsink-loopback.vala
-$mplayer tv:// -tv device=/dev/video1
-or $luvcview -d /dev/video1 -f yuv
+$ v4lsink
+
+The default pipeline is
+  'v4l2src device=/dev/video0 ! ffmpegcolorspace ! V4l2SinkLoopback'
+outputting to /dev/video1
+
+So if you have 640x480 webcam at /dev/video0 you can check result with command
+  $ mplayer tv:// -tv device=/dev/video1
+or
+  $ luvcview -d /dev/video1 -f yuv
 or just select /dev/video1 in skype and transmit fun video
+If you want another resolution change it in gst-v4lsink-loopback.vala
 
-you also can pass custom pipeline with fancy video filters as command line parameter last element in pipelene shoul be v4lSinkLoopback
+you also can pass custom pipeline with fancy video filters as command line
+parameter. The last element in pipeline should be V4l2SinkLoopback.
 
-default pipeline is 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! v4lSinkLoopback'
-if you want to use some effect filters - run this:
-v4lsink 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! effect ! ffmpegcolorspace ! V4l2SinkLoopback'
+If you want to use some effect filters - run this:
+  $ v4lsink 'v4l2src device=/dev/video0 ! ffmpegcolorspace ! effect !\
+             ffmpegcolorspace ! V4l2SinkLoopback'
+with 'effect' being any registered gstreamer video effect plugin, 'warptv' for
+example.
 
-effect is any registered gstreamer vido effect plugin, warptv for example 
+To play any videofile, and apply effects to it, you can use somethig like:
+  $ v4lsink 'filesrc location=file.avi ! decodebin ! ffmpegcolorspace !\
+             videoscale ! video/x-raw-rgb, width=640,height=480 ! warptv !
+             ffmpegcolorspace ! V4l2SinkLoopback'

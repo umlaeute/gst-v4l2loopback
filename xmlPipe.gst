@@ -22,7 +22,7 @@
     <gst:children>
       <gst:element>
         <gst:name>myv4lsink</gst:name>
-        <gst:type>v4lSinkLoopback</gst:type>
+        <gst:type>V4l2SinkLoopback</gst:type>
         <gst:param>
           <gst:name>name</gst:name>
           <gst:value>myv4lsink</gst:value>
