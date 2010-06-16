@@ -79,5 +79,5 @@ public class V4l2SinkLoopback : Gst.VideoSink
     return Gst.FlowReturn.OK;
   }
 }
-}
+
 
