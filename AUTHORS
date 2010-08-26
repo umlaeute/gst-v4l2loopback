@@ -1,2 +1,8 @@
 IOhannes m zmoelnig <zmoelnig AT iem DOT at>
-FIXME: v4lsink authors
+
+original implementation in vala:
+Gorinich Zmey
+
+gstreamer code based on the gst-template by:
+Thomas Vander Stichele
+Ronald S. Bultje
