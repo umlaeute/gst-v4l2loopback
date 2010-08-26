@@ -9,7 +9,7 @@ public class VideoSinkTest : GLib.Object
 
   public VideoSinkTest(string param)
   {
-    this.pipeline_string = param;
+    GLib.Object(pipeline_string: param);
   }
   //registers v4lsink plugin and starts gstreamer pipeline
   construct
@@ -24,7 +24,12 @@ public class VideoSinkTest : GLib.Object
   private void setup_gst_pipeline ()
   {
     GLib.debug("app setup_pipeline");
-    pipeline = (Pipeline)Gst.parse_launch(pipeline_string);
+    try {
+	pipeline = (Pipeline)Gst.parse_launch(pipeline_string);
+    } catch (GLib.Error e) {
+	Posix.stdout.printf("Error: %s\n", e.message);
+	pipeline=null;
+    }
     assert(this.pipeline != null);
   }
 
