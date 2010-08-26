@@ -2,7 +2,7 @@
  * GStreamer
  * Copyright (C) 2005 Thomas Vander Stichele <thomas@apestaart.org>
  * Copyright (C) 2005 Ronald S. Bultje <rbultje@ronald.bitfreak.net>
- * Copyright (C) YEAR AUTHOR_NAME AUTHOR_EMAIL
+ * Copyright (C) 2010 IOhannes m zmoelnig <zmoelnig@iem.at>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -78,7 +78,7 @@ struct _GstV4L2Loopback
   struct v4l2_capability vcap;  /* the video device's capabilities */
   struct v4l2_format     vformat; /* the v4l2 format */
 
-  unsigned int width, height;
+  unsigned int width, height; /* width and height of the video */
 };
 
 struct _GstV4L2LoopbackClass 

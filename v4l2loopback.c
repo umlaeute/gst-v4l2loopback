@@ -2,6 +2,7 @@
  * GStreamer
  * Copyright (C) 2005 Thomas Vander Stichele <thomas@apestaart.org>
  * Copyright (C) 2005 Ronald S. Bultje <rbultje@ronald.bitfreak.net>
+ * Copyright (C) 2008-2009 Gorinich Zmey
  * Copyright (C) 2010 IOhannes m zmoelnig <zmoelnig@iem.at>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
