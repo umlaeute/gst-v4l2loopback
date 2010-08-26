@@ -1,1 +1,4 @@
-nothing there yet
+- ported the vala gstreamer to a plain C implementation
+- added device/device-name/device-fd properties (compatible with other v4l2 elements)
+
+--- Don Aug 26 16:26:52 CEST 2010:  IOhannes m zmölnig 
