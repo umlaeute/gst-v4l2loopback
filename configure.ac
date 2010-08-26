@@ -30,7 +30,7 @@ AC_CHECK_PROG(HAVE_PKGCONFIG, pkg-config, [ ], [
 ])
 
 dnl Check for the required version of GStreamer core (and gst-plugins-base)
-dnl This will export GST_CFLAGS and GST_LIBS variables for use in GNUmakefile.am
+dnl This will export GST_CFLAGS and GST_LIBS variables for use in Makefile.am
 dnl
 dnl If you need libraries from gst-plugins-base here, also add:
 dnl for libgstaudio-0.10: gstreamer-audio-0.10 >= $GST_REQUIRED
@@ -76,7 +76,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([ ], [ ])], [
   AC_MSG_RESULT([no])
 ])
 
-dnl set the plugindir where plugins should be installed (for GNUmakefile.am)
+dnl set the plugindir where plugins should be installed (for Makefile.am)
 if test "x${prefix}" = "x$HOME"; then
   plugindir="$HOME/.gstreamer-0.10/plugins"
 else
@@ -88,6 +88,6 @@ dnl set proper LDFLAGS for plugins
 GST_PLUGIN_LDFLAGS='-module -avoid-version -export-symbols-regex [_]*\(gst_\|Gst\|GST_\).*'
 AC_SUBST(GST_PLUGIN_LDFLAGS)
 
-AC_CONFIG_FILES([GNUmakefile])
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 
