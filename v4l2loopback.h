@@ -67,16 +67,15 @@ typedef struct _GstV4L2LoopbackClass GstV4L2LoopbackClass;
 
 struct _GstV4L2Loopback
 {
-  GstElement element;
+  GstVideoSink videosink;
 
-  GstPad *sinkpad, *srcpad;
-
-  gboolean silent;
+  /*< private >*/
+  char *videodev;   /* the video device */
 };
 
 struct _GstV4L2LoopbackClass 
 {
-  GstElementClass parent_class;
+  GstVideoSinkClass parent_class;
 };
 
 GType gst_v4l2_loopback_get_type (void);

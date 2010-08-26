@@ -2,7 +2,7 @@
  * GStreamer
  * Copyright (C) 2005 Thomas Vander Stichele <thomas@apestaart.org>
  * Copyright (C) 2005 Ronald S. Bultje <rbultje@ronald.bitfreak.net>
- * Copyright (C) YEAR AUTHOR_NAME AUTHOR_EMAIL
+ * Copyright (C) 2010 IOhannes m zmoelnig <zmoelnig@iem.at>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -44,7 +44,7 @@
  */
 
 /**
- * SECTION:element-sink
+ * SECTION:element-v4l2loopback
  *
  * pipes video data into a v4l2 loopback device
  *
@@ -61,45 +61,47 @@
 #endif
 
 #include <gst/gst.h>
-
+#include <gst/video/gstvideosink.h>
 #include "v4l2loopback.h"
+
+#define DEFAULT_PROP_DEVICE   "/dev/video1"
+
 
 GST_DEBUG_CATEGORY_STATIC (gst_v4l2_loopback_debug);
 #define GST_CAT_DEFAULT gst_v4l2_loopback_debug
 
 /* Filter signals and args */
 enum
-{
-  /* FILL ME */
-  LAST_SIGNAL
-};
+  {
+    /* FILL ME */
+    LAST_SIGNAL
+  };
 
 enum
-{
-  PROP_0,
-  PROP_SILENT
-};
+  {
+    PROP_0,
+    PROP_DEVICE
+  };
 
 /* the capabilities of the inputs and outputs.
  *
  * describe the real formats here.
  */
 static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink",
-    GST_PAD_SINK,
-    GST_PAD_ALWAYS,
-    GST_STATIC_CAPS ("ANY")
-    );
+								    GST_PAD_SINK,
+								    GST_PAD_ALWAYS,
+								    GST_STATIC_CAPS ("video/x-raw-yuv, width=640, height=480, format=(fourcc)YUY2")
+								    );
 
-GST_BOILERPLATE (GstV4L2Loopback, gst_v4l2_loopback, GstElement,
-    GST_TYPE_ELEMENT);
+GST_BOILERPLATE (GstV4L2Loopback, gst_v4l2_loopback, GstVideoSink,
+		 GST_TYPE_VIDEO_SINK);
+
+//GST_BOILERPLATE_FULL (GstV4L2Loopback, gst_v4l2_loopback, GstVideoSink, GST_TYPE_VIDEO_SINK, gst_v4l2sink_init_interfaces);
 
 static void gst_v4l2_loopback_set_property (GObject * object, guint prop_id,
-    const GValue * value, GParamSpec * pspec);
+					    const GValue * value, GParamSpec * pspec);
 static void gst_v4l2_loopback_get_property (GObject * object, guint prop_id,
-    GValue * value, GParamSpec * pspec);
-
-static gboolean gst_v4l2_loopback_set_caps (GstPad * pad, GstCaps * caps);
-static GstFlowReturn gst_v4l2_loopback_chain (GstPad * pad, GstBuffer * buf);
+					    GValue * value, GParamSpec * pspec);
 
 /* GObject vmethod implementations */
 
@@ -115,7 +117,7 @@ gst_v4l2_loopback_base_init (gpointer gclass)
 				       "IOhannes m zmoelnig <zmoelnig@iem.at>");
 
   gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&sink_factory));
+				      gst_static_pad_template_get (&sink_factory));
 }
 
 /* initialize the plugin's class */
@@ -131,9 +133,10 @@ gst_v4l2_loopback_class_init (GstV4L2LoopbackClass * klass)
   gobject_class->set_property = gst_v4l2_loopback_set_property;
   gobject_class->get_property = gst_v4l2_loopback_get_property;
 
-  g_object_class_install_property (gobject_class, PROP_SILENT,
-      g_param_spec_boolean ("silent", "Silent", "Produce verbose output ?",
-          FALSE, G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, PROP_DEVICE,
+				   g_param_spec_string ("device", "Device", "Device location",
+							DEFAULT_PROP_DEVICE,
+							G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 /* initialize the new element
@@ -142,86 +145,46 @@ gst_v4l2_loopback_class_init (GstV4L2LoopbackClass * klass)
  * initialize instance structure
  */
 static void
-gst_v4l2_loopback_init (GstV4L2Loopback * filter,
-    GstV4L2LoopbackClass * gclass)
+gst_v4l2_loopback_init (GstV4L2Loopback * loop,
+			GstV4L2LoopbackClass * gclass)
 {
-  filter->sinkpad = gst_pad_new_from_static_template (&sink_factory, "sink");
-  gst_pad_set_setcaps_function (filter->sinkpad,
-                                GST_DEBUG_FUNCPTR(gst_v4l2_loopback_set_caps));
-  gst_pad_set_getcaps_function (filter->sinkpad,
-                                GST_DEBUG_FUNCPTR(gst_pad_proxy_getcaps));
-  gst_pad_set_chain_function (filter->sinkpad,
-                              GST_DEBUG_FUNCPTR(gst_v4l2_loopback_chain));
-
-  gst_element_add_pad (GST_ELEMENT (filter), filter->sinkpad);
-  filter->silent = FALSE;
+  g_object_set (loop, "device", "/dev/video1", NULL);
 }
 
 static void
 gst_v4l2_loopback_set_property (GObject * object, guint prop_id,
-    const GValue * value, GParamSpec * pspec)
+				const GValue * value, GParamSpec * pspec)
 {
-  GstV4L2Loopback *filter = GST_V4L2_LOOPBACK (object);
+  GstV4L2Loopback *loop = GST_V4L2_LOOPBACK (object);
 
   switch (prop_id) {
-    case PROP_SILENT:
-      filter->silent = g_value_get_boolean (value);
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-      break;
+  case PROP_DEVICE:
+    g_free (loop->videodev);
+    loop->videodev = g_value_dup_string (value);
+    break;
+  default:
+    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    break;
   }
 }
 
 static void
 gst_v4l2_loopback_get_property (GObject * object, guint prop_id,
-    GValue * value, GParamSpec * pspec)
+				GValue * value, GParamSpec * pspec)
 {
-  GstV4L2Loopback *filter = GST_V4L2_LOOPBACK (object);
+  GstV4L2Loopback *loop = GST_V4L2_LOOPBACK (object);
 
   switch (prop_id) {
-    case PROP_SILENT:
-      g_value_set_boolean (value, filter->silent);
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-      break;
+  case PROP_DEVICE:
+    g_value_set_string (value, loop->videodev);
+    break;
+  default:
+    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    break;
   }
 }
 
 /* GstElement vmethod implementations */
-
-/* this function handles the link with other elements */
-static gboolean
-gst_v4l2_loopback_set_caps (GstPad * pad, GstCaps * caps)
-{
-  GstV4L2Loopback *filter;
-  GstPad *otherpad;
-
-  filter = GST_V4L2_LOOPBACK (gst_pad_get_parent (pad));
-  otherpad = (pad == filter->srcpad) ? filter->sinkpad : filter->srcpad;
-  gst_object_unref (filter);
-
-  return gst_pad_set_caps (otherpad, caps);
-}
-
-/* chain function
- * this function does the actual processing
- */
-static GstFlowReturn
-gst_v4l2_loopback_chain (GstPad * pad, GstBuffer * buf)
-{
-  GstV4L2Loopback *filter;
-
-  filter = GST_V4L2_LOOPBACK (GST_OBJECT_PARENT (pad));
-
-  if (filter->silent == FALSE)
-    g_print ("I'm plugged, therefore I'm in.\n");
-
-  /* just push out the incoming buffer without touching it */
-  return gst_pad_push (filter->srcpad, buf);
-}
-
 
 /* entry point to initialize the plug-in
  * initialize the plug-in itself
@@ -234,11 +197,11 @@ plugin_init (GstPlugin * plugin)
    *
    * exchange the string 'Template plugin' with your description
    */
-  GST_DEBUG_CATEGORY_INIT (gst_v4l2_loopback_debug, "plugin",
-      0, "Template plugin");
+  GST_DEBUG_CATEGORY_INIT (gst_v4l2_loopback_debug, "v4l2loopback",
+			   0, "V4L2 loopack device sink");
 
-  return gst_element_register (plugin, "plugin", GST_RANK_NONE,
-      GST_TYPE_V4L2_LOOPBACK);
+  return gst_element_register (plugin, "v4l2loopback", GST_RANK_NONE,
+			       GST_TYPE_V4L2_LOOPBACK);
 }
 
 /* PACKAGE: this is usually set by autotools depending on some _INIT macro
@@ -247,7 +210,7 @@ plugin_init (GstPlugin * plugin)
  * compile this code. GST_PLUGIN_DEFINE needs PACKAGE to be defined.
  */
 #ifndef PACKAGE
-#define PACKAGE "myfirstplugin"
+#define PACKAGE "v4l2loopback"
 #endif
 
 /* gstreamer looks for this structure to register plugins
@@ -255,13 +218,13 @@ plugin_init (GstPlugin * plugin)
  * exchange the string 'Template plugin' with your plugin description
  */
 GST_PLUGIN_DEFINE (
-    GST_VERSION_MAJOR,
-    GST_VERSION_MINOR,
-    "plugin",
-    "Template plugin",
-    plugin_init,
-    VERSION,
-    "LGPL",
-    "GStreamer",
-    "http://gstreamer.net/"
-)
+		   GST_VERSION_MAJOR,
+		   GST_VERSION_MINOR,
+		   "v4l2loopback",
+		   "V4L2 loopback device",
+		   plugin_init,
+		   VERSION,
+		   "LGPL",
+		   "GStreamer",
+		   "http://gstreamer.net/"
+		   )
