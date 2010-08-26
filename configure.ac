@@ -60,6 +60,11 @@ PKG_CHECK_MODULES(GST, [
   ])
 ])
 
+
+AC_CHECK_HEADERS([linux/videodev2.h],[],[
+  AC_MSG_ERROR([couldn't find V4L2-headers])
+])
+
 dnl check if compiler understands -Wall (if yes, add -Wall to GST_CFLAGS)
 AC_MSG_CHECKING([to see if compiler understands -Wall])
 save_CFLAGS="$CFLAGS"
