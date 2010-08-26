@@ -48,6 +48,8 @@
 
 #include <gst/gst.h>
 
+#include <linux/videodev2.h>
+
 G_BEGIN_DECLS
 
 /* #defines don't like whitespacey bits */
@@ -71,6 +73,12 @@ struct _GstV4L2Loopback
 
   /*< private >*/
   char *videodev;   /* the video device */
+  gint video_fd;    /* the video-device's file descriptor */
+
+  struct v4l2_capability vcap;  /* the video device's capabilities */
+  struct v4l2_format     vformat; /* the v4l2 format */
+
+  unsigned int width, height;
 };
 
 struct _GstV4L2LoopbackClass 

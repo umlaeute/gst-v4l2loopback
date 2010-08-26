@@ -64,8 +64,15 @@
 #include <gst/video/gstvideosink.h>
 #include "v4l2loopback.h"
 
-#define DEFAULT_PROP_DEVICE   "/dev/video1"
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
 
+#define DEFAULT_PROP_DEVICE_NAME 	NULL
+#define DEFAULT_PROP_DEVICE   "/dev/video1"
+#define DEFAULT_PROP_DEVICE_FD -1
 
 GST_DEBUG_CATEGORY_STATIC (gst_v4l2_loopback_debug);
 #define GST_CAT_DEFAULT gst_v4l2_loopback_debug
@@ -80,7 +87,9 @@ enum
 enum
   {
     PROP_0,
-    PROP_DEVICE
+    PROP_DEVICE,
+    PROP_DEVICE_FD,
+    PROP_DEVICE_NAME
   };
 
 /* the capabilities of the inputs and outputs.
@@ -104,6 +113,145 @@ static void gst_v4l2_loopback_get_property (GObject * object, guint prop_id,
 					    GValue * value, GParamSpec * pspec);
 
 /* GObject vmethod implementations */
+gboolean
+gst_v4l2loopback_stop (GstV4L2Loopback * v4l2loop)
+{
+  if(v4l2loop->video_fd<0) {
+    /*
+    GST_ELEMENT_ERROR (v4l2loop->element, RESOURCE, SETTINGS,
+		       (_("Device is not open.")), (NULL));
+    */
+    return FALSE;
+  }
+  close(v4l2loop->video_fd);
+  v4l2loop->video_fd=-1;
+
+  return TRUE;
+}
+
+gboolean
+gst_v4l2loopback_start (GstV4L2Loopback * v4l2loop)
+{
+  struct stat st;
+  int ret=0;
+
+  if(v4l2loop->video_fd>=0) {
+    /* already open */
+    return FALSE;
+  }
+
+  /* be sure we have a device */
+  if (!v4l2loop->videodev)
+    v4l2loop->videodev = g_strdup ("/dev/video");
+
+  /* check if it is a device */
+  if (stat (v4l2loop->videodev, &st) == -1) {
+    GST_DEBUG ("Failed to stat '%s'", v4l2loop->videodev);
+    return FALSE;
+  }
+
+  if (!S_ISCHR (st.st_mode)) {
+    GST_DEBUG ("'%s' is no device", v4l2loop->videodev);
+    return FALSE;
+  }
+
+  /* open the device */
+  v4l2loop->video_fd = open (v4l2loop->videodev, O_RDWR /* | O_NONBLOCK */ );
+
+  if(v4l2loop->video_fd < 0) {
+    GST_DEBUG ("Failed to open '%s'", v4l2loop->videodev);
+    return FALSE;
+  }
+
+  /* check whether it's a video device */
+  ret = ioctl(v4l2loop->video_fd, VIDIOC_QUERYCAP, &v4l2loop->vcap);
+  if(-1 == ret) {
+    GST_DEBUG ("couldn't query caps of '%s'", v4l2loop->videodev);
+    goto close_it;
+  }
+  if( !(v4l2loop->vcap.capabilities & V4L2_CAP_VIDEO_OUTPUT) ) {
+    GST_DEBUG("device '%s' is not a video4linux2 output device", v4l2loop->videodev);
+    goto close_it;
+  }
+
+  /* check whether it's an output device */
+  v4l2loop->vformat.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+  v4l2loop->vformat.fmt.pix.width = v4l2loop->width;
+  v4l2loop->vformat.fmt.pix.height = v4l2loop->height;
+  v4l2loop->vformat.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+  v4l2loop->vformat.fmt.pix.sizeimage = v4l2loop->width*v4l2loop->height*2;
+  v4l2loop->vformat.fmt.pix.field = V4L2_FIELD_NONE;
+  v4l2loop->vformat.fmt.pix.bytesperline = v4l2loop->width*2;
+  v4l2loop->vformat.fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
+  ret = ioctl(v4l2loop->video_fd, VIDIOC_S_FMT, &v4l2loop->vformat);
+  if(-1 == ret) {
+    GST_DEBUG ("couldn't set format of '%s'", v4l2loop->videodev);
+    goto close_it;
+  }
+
+  return TRUE;
+
+ close_it:
+  gst_v4l2loopback_stop ( v4l2loop);
+
+  return FALSE;
+}
+
+static GstStateChangeReturn
+gst_v4l2loopback_change_state (GstElement * element, GstStateChange transition)
+{
+  GstStateChangeReturn ret = GST_STATE_CHANGE_SUCCESS;
+  GstV4L2Loopback *v4l2loopback = GST_V4L2_LOOPBACK (element);
+
+  GST_DEBUG_OBJECT (v4l2loopback, "%d -> %d",
+      GST_STATE_TRANSITION_CURRENT (transition),
+      GST_STATE_TRANSITION_NEXT (transition));
+
+  switch (transition) {
+    case GST_STATE_CHANGE_NULL_TO_READY:
+      /* open the device */
+      if (!gst_v4l2loopback_start (v4l2loopback))
+        return GST_STATE_CHANGE_FAILURE;
+      break;
+    default:
+      break;
+  }
+
+  ret = GST_ELEMENT_CLASS (parent_class)->change_state (element, transition);
+
+  switch (transition) {
+    case GST_STATE_CHANGE_READY_TO_NULL:
+      /* close the device */
+      if (!gst_v4l2loopback_stop (v4l2loopback))
+        return GST_STATE_CHANGE_FAILURE;
+      break;
+    default:
+      break;
+  }
+
+  return ret;
+}
+
+/* called after A/V sync to render frame */
+static GstFlowReturn
+gst_v4l2loopback_show_frame (GstBaseSink * bsink, GstBuffer * buf)
+{
+  GstV4L2Loopback *v4l2loopback = GST_V4L2_LOOPBACK (bsink);
+  ssize_t ret=0;
+
+  if(v4l2loopback->video_fd < 0) {
+    return GST_FLOW_ERROR;
+  }
+
+  GST_DEBUG_OBJECT (v4l2loopback, "render buffer: %p", buf);
+
+  ret=write(v4l2loopback->video_fd, buf->data, buf->size);
+
+  GST_DEBUG_OBJECT (v4l2loopback, "wrote %d bytes to %d", ret, v4l2loopback->video_fd);
+
+  return GST_FLOW_OK;
+}
+
 
 static void
 gst_v4l2_loopback_base_init (gpointer gclass)
@@ -125,18 +273,38 @@ static void
 gst_v4l2_loopback_class_init (GstV4L2LoopbackClass * klass)
 {
   GObjectClass *gobject_class;
-  GstElementClass *gstelement_class;
+  GstElementClass *element_class;
+  GstBaseSinkClass *basesink_class;
 
-  gobject_class = (GObjectClass *) klass;
-  gstelement_class = (GstElementClass *) klass;
+  gobject_class =  G_OBJECT_CLASS      (klass);
+  element_class =  GST_ELEMENT_CLASS   (klass);
+  basesink_class = GST_BASE_SINK_CLASS (klass);
 
   gobject_class->set_property = gst_v4l2_loopback_set_property;
   gobject_class->get_property = gst_v4l2_loopback_get_property;
+
+  element_class->change_state = gst_v4l2loopback_change_state;
+
+
 
   g_object_class_install_property (gobject_class, PROP_DEVICE,
 				   g_param_spec_string ("device", "Device", "Device location",
 							DEFAULT_PROP_DEVICE,
 							G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_DEVICE_FD,
+				   g_param_spec_int ("device-fd", "File descriptor",
+						     "File descriptor of the device", -1, G_MAXINT, DEFAULT_PROP_DEVICE_FD,
+						     G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_DEVICE_NAME,
+				   g_param_spec_string ("device-name", "Device name",
+							"Name of the device", DEFAULT_PROP_DEVICE_NAME,
+							G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+  basesink_class->preroll = GST_DEBUG_FUNCPTR (gst_v4l2loopback_show_frame);
+  basesink_class->render = GST_DEBUG_FUNCPTR (gst_v4l2loopback_show_frame);
+  
 }
 
 /* initialize the new element
@@ -149,6 +317,10 @@ gst_v4l2_loopback_init (GstV4L2Loopback * loop,
 			GstV4L2LoopbackClass * gclass)
 {
   g_object_set (loop, "device", "/dev/video1", NULL);
+  loop->video_fd = -1;
+
+  loop->width = 640;
+  loop->height = 480;
 }
 
 static void
@@ -178,6 +350,27 @@ gst_v4l2_loopback_get_property (GObject * object, guint prop_id,
   case PROP_DEVICE:
     g_value_set_string (value, loop->videodev);
     break;
+  case PROP_DEVICE_NAME:
+    {
+      const guchar *new = NULL;
+      if(loop->video_fd>=0){
+        new = loop->vcap.card;
+      } else if (gst_v4l2loopback_start(loop)) {
+	/* FIXXME: split start into open() and configure() */
+        new = loop->vcap.card;
+	gst_v4l2loopback_stop(loop);
+      }
+      g_value_set_string (value, (gchar *) new);
+      break;
+    }
+  case PROP_DEVICE_FD:
+    {
+      if(loop->video_fd>=0)
+        g_value_set_int (value, loop->video_fd);
+      else
+        g_value_set_int (value, DEFAULT_PROP_DEVICE_FD);
+      break;
+    }
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     break;
@@ -215,7 +408,6 @@ plugin_init (GstPlugin * plugin)
 
 /* gstreamer looks for this structure to register plugins
  *
- * exchange the string 'Template plugin' with your plugin description
  */
 GST_PLUGIN_DEFINE (
 		   GST_VERSION_MAJOR,
