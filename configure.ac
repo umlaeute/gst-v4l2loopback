@@ -35,6 +35,7 @@ dnl
 dnl If you need libraries from gst-plugins-base here, also add:
 dnl for libgstaudio-0.10: gstreamer-audio-0.10 >= $GST_REQUIRED
 dnl for libgstvideo-0.10: gstreamer-video-0.10 >= $GST_REQUIRED
+dnl for libgstcontroller-0.10: gstreamer-controller-0.10 >= $GST_REQUIRED
 dnl for libgsttag-0.10: gstreamer-tag-0.10 >= $GST_REQUIRED
 dnl for libgstpbutils-0.10: gstreamer-pbutils-0.10 >= $GST_REQUIRED
 dnl for libgstfft-0.10: gstreamer-fft-0.10 >= $GST_REQUIRED
@@ -45,7 +46,7 @@ dnl etc.
 PKG_CHECK_MODULES(GST, [
   gstreamer-0.10 >= $GST_REQUIRED
   gstreamer-base-0.10 >= $GST_REQUIRED
-  gstreamer-controller-0.10 >= $GST_REQUIRED
+  gstreamer-video-0.10 >= $GST_REQUIRED
 ], [
   AC_SUBST(GST_CFLAGS)
   AC_SUBST(GST_LIBS)
