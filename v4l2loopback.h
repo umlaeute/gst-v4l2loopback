@@ -43,29 +43,29 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#ifndef __GST_PLUGIN_TEMPLATE_H__
-#define __GST_PLUGIN_TEMPLATE_H__
+#ifndef __GST_V4L2_LOOPBACK_H__
+#define __GST_V4L2_LOOPBACK_H__
 
 #include <gst/gst.h>
 
 G_BEGIN_DECLS
 
 /* #defines don't like whitespacey bits */
-#define GST_TYPE_PLUGIN_TEMPLATE \
-  (gst_plugin_template_get_type())
-#define GST_PLUGIN_TEMPLATE(obj) \
-  (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_PLUGIN_TEMPLATE,GstPluginTemplate))
-#define GST_PLUGIN_TEMPLATE_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_PLUGIN_TEMPLATE,GstPluginTemplateClass))
-#define GST_IS_PLUGIN_TEMPLATE(obj) \
-  (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_PLUGIN_TEMPLATE))
-#define GST_IS_PLUGIN_TEMPLATE_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_PLUGIN_TEMPLATE))
+#define GST_TYPE_V4L2_LOOPBACK \
+  (gst_v4l2_loopback_get_type())
+#define GST_V4L2_LOOPBACK(obj) \
+  (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_V4L2_LOOPBACK,GstV4L2Loopback))
+#define GST_V4L2_LOOPBACK_CLASS(klass) \
+  (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_V4L2_LOOPBACK,GstV4L2LoopbackClass))
+#define GST_IS_V4L2_LOOPBACK(obj) \
+  (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_V4L2_LOOPBACK))
+#define GST_IS_V4L2_LOOPBACK_CLASS(klass) \
+  (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_V4L2_LOOPBACK))
 
-typedef struct _GstPluginTemplate      GstPluginTemplate;
-typedef struct _GstPluginTemplateClass GstPluginTemplateClass;
+typedef struct _GstV4L2Loopback      GstV4L2Loopback;
+typedef struct _GstV4L2LoopbackClass GstV4L2LoopbackClass;
 
-struct _GstPluginTemplate
+struct _GstV4L2Loopback
 {
   GstElement element;
 
@@ -74,13 +74,13 @@ struct _GstPluginTemplate
   gboolean silent;
 };
 
-struct _GstPluginTemplateClass 
+struct _GstV4L2LoopbackClass 
 {
   GstElementClass parent_class;
 };
 
-GType gst_plugin_template_get_type (void);
+GType gst_v4l2_loopback_get_type (void);
 
 G_END_DECLS
 
-#endif /* __GST_PLUGIN_TEMPLATE_H__ */
+#endif /* __GST_V4L2_LOOPBACK_H__ */

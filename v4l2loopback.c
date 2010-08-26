@@ -44,14 +44,14 @@
  */
 
 /**
- * SECTION:element-plugin
+ * SECTION:element-sink
  *
- * FIXME:Describe plugin here.
+ * pipes video data into a v4l2 loopback device
  *
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch -v -m fakesrc ! plugin ! fakesink silent=TRUE
+ * gst-launch -v -m videotestsrc ! ffmpegcolorspace ! v4l2loopback
  * ]|
  * </refsect2>
  */
@@ -62,10 +62,10 @@
 
 #include <gst/gst.h>
 
-#include "gstplugin.h"
+#include "v4l2loopback.h"
 
-GST_DEBUG_CATEGORY_STATIC (gst_plugin_template_debug);
-#define GST_CAT_DEFAULT gst_plugin_template_debug
+GST_DEBUG_CATEGORY_STATIC (gst_v4l2_loopback_debug);
+#define GST_CAT_DEFAULT gst_v4l2_loopback_debug
 
 /* Filter signals and args */
 enum
@@ -90,45 +90,37 @@ static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_STATIC_CAPS ("ANY")
     );
 
-static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src",
-    GST_PAD_SRC,
-    GST_PAD_ALWAYS,
-    GST_STATIC_CAPS ("ANY")
-    );
-
-GST_BOILERPLATE (GstPluginTemplate, gst_plugin_template, GstElement,
+GST_BOILERPLATE (GstV4L2Loopback, gst_v4l2_loopback, GstElement,
     GST_TYPE_ELEMENT);
 
-static void gst_plugin_template_set_property (GObject * object, guint prop_id,
+static void gst_v4l2_loopback_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec);
-static void gst_plugin_template_get_property (GObject * object, guint prop_id,
+static void gst_v4l2_loopback_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
 
-static gboolean gst_plugin_template_set_caps (GstPad * pad, GstCaps * caps);
-static GstFlowReturn gst_plugin_template_chain (GstPad * pad, GstBuffer * buf);
+static gboolean gst_v4l2_loopback_set_caps (GstPad * pad, GstCaps * caps);
+static GstFlowReturn gst_v4l2_loopback_chain (GstPad * pad, GstBuffer * buf);
 
 /* GObject vmethod implementations */
 
 static void
-gst_plugin_template_base_init (gpointer gclass)
+gst_v4l2_loopback_base_init (gpointer gclass)
 {
   GstElementClass *element_class = GST_ELEMENT_CLASS (gclass);
 
   gst_element_class_set_details_simple(element_class,
-    "Plugin",
-    "FIXME:Generic",
-    "FIXME:Generic Template Element",
-    "AUTHOR_NAME AUTHOR_EMAIL");
+				       "v4l2loopback",
+				       "V4L2 loopback sink",
+				       "this allows to send your data to a v4l2 loopback device",
+				       "IOhannes m zmoelnig <zmoelnig@iem.at>");
 
-  gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&src_factory));
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&sink_factory));
 }
 
 /* initialize the plugin's class */
 static void
-gst_plugin_template_class_init (GstPluginTemplateClass * klass)
+gst_v4l2_loopback_class_init (GstV4L2LoopbackClass * klass)
 {
   GObjectClass *gobject_class;
   GstElementClass *gstelement_class;
@@ -136,8 +128,8 @@ gst_plugin_template_class_init (GstPluginTemplateClass * klass)
   gobject_class = (GObjectClass *) klass;
   gstelement_class = (GstElementClass *) klass;
 
-  gobject_class->set_property = gst_plugin_template_set_property;
-  gobject_class->get_property = gst_plugin_template_get_property;
+  gobject_class->set_property = gst_v4l2_loopback_set_property;
+  gobject_class->get_property = gst_v4l2_loopback_get_property;
 
   g_object_class_install_property (gobject_class, PROP_SILENT,
       g_param_spec_boolean ("silent", "Silent", "Produce verbose output ?",
@@ -150,31 +142,26 @@ gst_plugin_template_class_init (GstPluginTemplateClass * klass)
  * initialize instance structure
  */
 static void
-gst_plugin_template_init (GstPluginTemplate * filter,
-    GstPluginTemplateClass * gclass)
+gst_v4l2_loopback_init (GstV4L2Loopback * filter,
+    GstV4L2LoopbackClass * gclass)
 {
   filter->sinkpad = gst_pad_new_from_static_template (&sink_factory, "sink");
   gst_pad_set_setcaps_function (filter->sinkpad,
-                                GST_DEBUG_FUNCPTR(gst_plugin_template_set_caps));
+                                GST_DEBUG_FUNCPTR(gst_v4l2_loopback_set_caps));
   gst_pad_set_getcaps_function (filter->sinkpad,
                                 GST_DEBUG_FUNCPTR(gst_pad_proxy_getcaps));
   gst_pad_set_chain_function (filter->sinkpad,
-                              GST_DEBUG_FUNCPTR(gst_plugin_template_chain));
-
-  filter->srcpad = gst_pad_new_from_static_template (&src_factory, "src");
-  gst_pad_set_getcaps_function (filter->srcpad,
-                                GST_DEBUG_FUNCPTR(gst_pad_proxy_getcaps));
+                              GST_DEBUG_FUNCPTR(gst_v4l2_loopback_chain));
 
   gst_element_add_pad (GST_ELEMENT (filter), filter->sinkpad);
-  gst_element_add_pad (GST_ELEMENT (filter), filter->srcpad);
   filter->silent = FALSE;
 }
 
 static void
-gst_plugin_template_set_property (GObject * object, guint prop_id,
+gst_v4l2_loopback_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstPluginTemplate *filter = GST_PLUGIN_TEMPLATE (object);
+  GstV4L2Loopback *filter = GST_V4L2_LOOPBACK (object);
 
   switch (prop_id) {
     case PROP_SILENT:
@@ -187,10 +174,10 @@ gst_plugin_template_set_property (GObject * object, guint prop_id,
 }
 
 static void
-gst_plugin_template_get_property (GObject * object, guint prop_id,
+gst_v4l2_loopback_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstPluginTemplate *filter = GST_PLUGIN_TEMPLATE (object);
+  GstV4L2Loopback *filter = GST_V4L2_LOOPBACK (object);
 
   switch (prop_id) {
     case PROP_SILENT:
@@ -206,12 +193,12 @@ gst_plugin_template_get_property (GObject * object, guint prop_id,
 
 /* this function handles the link with other elements */
 static gboolean
-gst_plugin_template_set_caps (GstPad * pad, GstCaps * caps)
+gst_v4l2_loopback_set_caps (GstPad * pad, GstCaps * caps)
 {
-  GstPluginTemplate *filter;
+  GstV4L2Loopback *filter;
   GstPad *otherpad;
 
-  filter = GST_PLUGIN_TEMPLATE (gst_pad_get_parent (pad));
+  filter = GST_V4L2_LOOPBACK (gst_pad_get_parent (pad));
   otherpad = (pad == filter->srcpad) ? filter->sinkpad : filter->srcpad;
   gst_object_unref (filter);
 
@@ -222,11 +209,11 @@ gst_plugin_template_set_caps (GstPad * pad, GstCaps * caps)
  * this function does the actual processing
  */
 static GstFlowReturn
-gst_plugin_template_chain (GstPad * pad, GstBuffer * buf)
+gst_v4l2_loopback_chain (GstPad * pad, GstBuffer * buf)
 {
-  GstPluginTemplate *filter;
+  GstV4L2Loopback *filter;
 
-  filter = GST_PLUGIN_TEMPLATE (GST_OBJECT_PARENT (pad));
+  filter = GST_V4L2_LOOPBACK (GST_OBJECT_PARENT (pad));
 
   if (filter->silent == FALSE)
     g_print ("I'm plugged, therefore I'm in.\n");
@@ -247,11 +234,11 @@ plugin_init (GstPlugin * plugin)
    *
    * exchange the string 'Template plugin' with your description
    */
-  GST_DEBUG_CATEGORY_INIT (gst_plugin_template_debug, "plugin",
+  GST_DEBUG_CATEGORY_INIT (gst_v4l2_loopback_debug, "plugin",
       0, "Template plugin");
 
   return gst_element_register (plugin, "plugin", GST_RANK_NONE,
-      GST_TYPE_PLUGIN_TEMPLATE);
+      GST_TYPE_V4L2_LOOPBACK);
 }
 
 /* PACKAGE: this is usually set by autotools depending on some _INIT macro
