@@ -17,6 +17,7 @@ public class V4l2SinkLoopback : Gst.VideoSink
  public static bool plugin_init(Plugin p) {
     //create element factory and add it to plugin p
     GLib.debug("v4lSink plugin_init");
+
     return Element.register(p, "V4l2SinkLoopback", Rank.NONE, typeof(V4l2SinkLoopback));
   }
 
@@ -40,26 +41,30 @@ public class V4l2SinkLoopback : Gst.VideoSink
 
   static StaticPadTemplate pad_factory;//pad factory, used to create an input pad
   private int output_fd;//output device descriptor
-  private weak V4l2.Capability vid_caps;
   private weak V4l2.Format vid_format;
+  private weak V4l2.Capability vid_caps;
 
-  //element should not be instantiated by operator new, register it and then use ElementFactory.make, it will call construct.
-  class construct  {
-    GLib.debug("v4lSink construct");
-    pad_factory.name_template = "sink";
-    pad_factory.direction = PadDirection.SINK;//direction of the pad: can be sink, or src
-    pad_factory.presence = PadPresence.ALWAYS;//when pad is available
-    pad_factory.static_caps.str = "video/x-raw-yuv, width=640, height=480, format=(fourcc)YUY2";//types pad accepts
-    add_pad_template(pad_factory.@get());//actual pad registration, this function is inherited from Element class 
-    set_details(details);//set details for V4l2SinkLoopback(this klass)
+  public string device { get; set; default = "/dev/video1"; }
+
+  private void closeDevice() {
+    if(this.output_fd>=0)Posix.close(this.output_fd);
+    this.output_fd=-1;
   }
 
-  construct
-  {
-    this.output_fd = Posix.open("/dev/video1", Posix.O_RDWR);
-    GLib.assert(this.output_fd>=0); GLib.debug("device opened");
+  private bool openDevice() {
+    closeDevice();
+    GLib.debug("opening %s", this.device);
+
+    this.output_fd = Posix.open(this.device, Posix.O_RDWR);
+    GLib.debug("device opened %d", this.output_fd);
+
+    if(this.output_fd<0)return false;
+
     int ret_code = Posix.ioctl(this.output_fd, V4l2.VIDIOC_QUERYCAP, &this.vid_caps);
-    GLib.assert(ret_code != -1); GLib.debug("got caps");
+    GLib.debug("ioctl %s returned %d", this.device, ret_code);
+    if(ret_code == -1)return false;
+    GLib.debug("got caps");
+
     this.vid_format.type = V4l2.BufferType.VIDEO_OUTPUT;
     this.vid_format.fmt.pix.width = 640;
     this.vid_format.fmt.pix.height = 480;
@@ -69,7 +74,38 @@ public class V4l2SinkLoopback : Gst.VideoSink
     this.vid_format.fmt.pix.bytesperline = 640*2;
     this.vid_format.fmt.pix.colorspace = V4l2.Colorspace.SRGB;
     ret_code = Posix.ioctl(this.output_fd, V4l2.VIDIOC_S_FMT, &this.vid_format);
-    GLib.assert(ret_code != -1); GLib.debug("set format");
+    if(ret_code == -1)return false;
+
+    GLib.debug("set format");
+    return true;
+  }
+
+  //element should not be instantiated by operator new, register it and then use ElementFactory.make, it will call construct.
+  class construct  {
+    GLib.debug("v4lSink construct");
+
+    pad_factory.name_template = "sink";
+    pad_factory.direction = PadDirection.SINK;//direction of the pad: can be sink, or src
+    pad_factory.presence = PadPresence.ALWAYS;//when pad is available
+    pad_factory.static_caps.str = "video/x-raw-yuv, width=640, height=480, format=(fourcc)YUY2";//types pad accepts
+    add_pad_template(pad_factory.@get());//actual pad registration, this function is inherited from Element class 
+    set_details(details);//set details for V4l2SinkLoopback(this klass)
+
+    GLib.ParamSpec parm = new GLib.ParamSpecString("device",
+				"Device location",
+				"which device to write to",
+				"/dev/video1",
+				GLib.ParamFlags.READWRITE | GLib.ParamFlags.STATIC_STRINGS);
+  }
+
+  construct
+  {
+    bool ret=openDevice();
+    GLib.assert(ret);
+    this.notify["device"].connect((s, p) => {
+	bool ret0=openDevice();
+        GLib.assert(ret0);
+    });
   }
 
   public override Gst.FlowReturn render(Gst.Buffer buf)
