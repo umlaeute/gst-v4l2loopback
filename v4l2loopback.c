@@ -100,7 +100,7 @@ enum
 static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink",
 								    GST_PAD_SINK,
 								    GST_PAD_ALWAYS,
-								    GST_STATIC_CAPS ("video/x-raw-yuv, width=640, height=480, format=(fourcc)YUY2")
+								    GST_STATIC_CAPS ("video/x-raw-yuv, width=[64, 32768], height=[64, 32768], format=(fourcc)YUY2")
 								    );
 
 GST_BOILERPLATE (GstV4L2Loopback, gst_v4l2_loopback, GstVideoSink,
@@ -112,6 +112,8 @@ static void gst_v4l2_loopback_set_property (GObject * object, guint prop_id,
 					    const GValue * value, GParamSpec * pspec);
 static void gst_v4l2_loopback_get_property (GObject * object, guint prop_id,
 					    GValue * value, GParamSpec * pspec);
+static void gst_v4l2_loopback_dispose (GObject * object);
+
 
 /* GObject vmethod implementations */
 gboolean
@@ -129,6 +131,46 @@ gst_v4l2loopback_stop (GstV4L2Loopback * v4l2loop)
 
   return TRUE;
 }
+
+gboolean
+gst_v4l2loopback_set_format (GstV4L2Loopback * v4l2loop, guint32 width, guint32 height)
+{
+  int ret=0;
+
+  GST_DEBUG ("trying to set '%s' to %dx%d", v4l2loop->videodev, width, height);
+
+ /* check whether it's an output device */
+  v4l2loop->vformat.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+  v4l2loop->vformat.fmt.pix.width = width;
+  v4l2loop->vformat.fmt.pix.height = height;
+  v4l2loop->vformat.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+  v4l2loop->vformat.fmt.pix.sizeimage = width*height*2;
+  v4l2loop->vformat.fmt.pix.field = V4L2_FIELD_NONE;
+  v4l2loop->vformat.fmt.pix.bytesperline = width*2;
+  v4l2loop->vformat.fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
+  ret = ioctl(v4l2loop->video_fd, VIDIOC_S_FMT, &v4l2loop->vformat);
+  if(-1 == ret) {
+    GST_DEBUG ("couldn't set format of '%s'", v4l2loop->videodev);
+    return FALSE;
+  }
+
+  v4l2loop->width =  v4l2loop->vformat.fmt.pix.width;
+  v4l2loop->height=  v4l2loop->vformat.fmt.pix.height;
+
+  if((v4l2loop->vformat.fmt.pix.width == width) && (v4l2loop->vformat.fmt.pix.height == height)) {
+  } else {
+    GST_DEBUG ("couldn't set format of '%s' to %dx%d (got %dx%d)", 
+               v4l2loop->videodev, 
+               width, height,
+               v4l2loop->vformat.fmt.pix.width,
+               v4l2loop->vformat.fmt.pix.height);
+
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
 
 gboolean
 gst_v4l2loopback_start (GstV4L2Loopback * v4l2loop)
@@ -175,20 +217,8 @@ gst_v4l2loopback_start (GstV4L2Loopback * v4l2loop)
     goto close_it;
   }
 
-  /* check whether it's an output device */
-  v4l2loop->vformat.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-  v4l2loop->vformat.fmt.pix.width = v4l2loop->width;
-  v4l2loop->vformat.fmt.pix.height = v4l2loop->height;
-  v4l2loop->vformat.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-  v4l2loop->vformat.fmt.pix.sizeimage = v4l2loop->width*v4l2loop->height*2;
-  v4l2loop->vformat.fmt.pix.field = V4L2_FIELD_NONE;
-  v4l2loop->vformat.fmt.pix.bytesperline = v4l2loop->width*2;
-  v4l2loop->vformat.fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
-  ret = ioctl(v4l2loop->video_fd, VIDIOC_S_FMT, &v4l2loop->vformat);
-  if(-1 == ret) {
-    GST_DEBUG ("couldn't set format of '%s'", v4l2loop->videodev);
-    goto close_it;
-  }
+  //  if(!gst_v4l2loopback_set_format (v4l2loop, v4l2loop->width, v4l2loop->height))
+  //    goto close_it;
 
   return TRUE;
 
@@ -254,6 +284,48 @@ gst_v4l2loopback_show_frame (GstBaseSink * bsink, GstBuffer * buf)
 }
 
 
+
+static gboolean
+gst_v4l2_loopback_set_caps (GstBaseSink * bsink, GstCaps * caps)
+{
+  GstV4L2Loopback *loop = GST_V4L2_LOOPBACK (bsink);
+  GstStructure *s;
+
+  if(loop->video_fd < 0) {
+    /* not opened yet! */
+    return FALSE;
+  }
+
+
+  if (loop->current_caps) {
+    GST_DEBUG_OBJECT (loop, "already have caps set.. are they equal?");
+    if (gst_caps_is_equal (loop->current_caps, caps)) {
+      GST_DEBUG_OBJECT (loop, "yes they are!");
+      return TRUE;
+    }
+    GST_DEBUG_OBJECT (loop, "no they aren't!");
+    gst_caps_unref (loop->current_caps);
+  }
+
+  int w=loop->width;
+  int h=loop->height;
+
+  /* negotiation succeeded, so now configure ourselves */
+  s = gst_caps_get_structure (caps, 0);
+
+  if(!gst_structure_get_int (s, "width", &w))return FALSE;
+  if(!gst_structure_get_int (s, "height", &h))return FALSE;
+
+  if(!gst_v4l2loopback_set_format(loop, w, h))
+    return FALSE;
+
+  loop->current_caps = gst_caps_ref (caps);
+
+  return TRUE;
+}
+
+
+
 static void
 gst_v4l2_loopback_base_init (gpointer gclass)
 {
@@ -281,12 +353,11 @@ gst_v4l2_loopback_class_init (GstV4L2LoopbackClass * klass)
   element_class =  GST_ELEMENT_CLASS   (klass);
   basesink_class = GST_BASE_SINK_CLASS (klass);
 
+  gobject_class->dispose = gst_v4l2_loopback_dispose;
   gobject_class->set_property = gst_v4l2_loopback_set_property;
   gobject_class->get_property = gst_v4l2_loopback_get_property;
 
   element_class->change_state = gst_v4l2loopback_change_state;
-
-
 
   g_object_class_install_property (gobject_class, PROP_DEVICE,
 				   g_param_spec_string ("device", "Device", "Device location",
@@ -305,8 +376,26 @@ gst_v4l2_loopback_class_init (GstV4L2LoopbackClass * klass)
 
   basesink_class->preroll = GST_DEBUG_FUNCPTR (gst_v4l2loopback_show_frame);
   basesink_class->render = GST_DEBUG_FUNCPTR (gst_v4l2loopback_show_frame);
+
+  basesink_class->set_caps = GST_DEBUG_FUNCPTR(gst_v4l2_loopback_set_caps);
   
 }
+
+
+
+static void
+gst_v4l2_loopback_dispose (GObject * object)
+{
+  GstV4L2Loopback *loop = GST_V4L2_LOOPBACK (object);
+
+  if (loop->current_caps) {
+    gst_caps_unref (loop->current_caps);
+  }
+
+  G_OBJECT_CLASS (parent_class)->dispose (object);
+}
+
+
 
 /* initialize the new element
  * instantiate pads and add them to element
@@ -320,8 +409,10 @@ gst_v4l2_loopback_init (GstV4L2Loopback * loop,
   g_object_set (loop, "device", "/dev/video1", NULL);
   loop->video_fd = -1;
 
-  loop->width = 640;
-  loop->height = 480;
+  loop->width = 0;
+  loop->height = 0;
+
+  loop->current_caps = NULL;
 }
 
 static void

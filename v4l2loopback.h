@@ -77,6 +77,7 @@ struct _GstV4L2Loopback
 
   struct v4l2_capability vcap;  /* the video device's capabilities */
   struct v4l2_format     vformat; /* the v4l2 format */
+  GstCaps *current_caps;        /* the current negotiated caps */
 
   unsigned int width, height; /* width and height of the video */
 };
