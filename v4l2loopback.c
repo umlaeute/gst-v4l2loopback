@@ -100,7 +100,7 @@ enum
 static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink",
 								    GST_PAD_SINK,
 								    GST_PAD_ALWAYS,
-								    GST_STATIC_CAPS ("video/x-raw-yuv, width=[64, 32768], height=[64, 32768], format=(fourcc)YUY2")
+								    GST_STATIC_CAPS ("video/x-raw-yuv, width=[48, 32768], height=[32, 32768], format=(fourcc)YUY2")
 								    );
 
 GST_BOILERPLATE (GstV4L2Loopback, gst_v4l2_loopback, GstVideoSink,

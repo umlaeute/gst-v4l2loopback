@@ -28,4 +28,9 @@ $  gst-inspect v4l2loopback
 a simple pipeline using v4l2loopback would be:
 $ gst-launch videotestsrc ! ffmpegcolorspace ! v4l2loopback
 
+--- NOTES ---
+the framesize is negotiated at runtime; virtually any framesize should be
+possible
 
+the colorspace is currently fixed to YUY2 (aka YUYV); LATER this might be
+negotiated via caps as well...
