@@ -34,3 +34,30 @@ possible
 
 the colorspace is currently fixed to YUY2 (aka YUYV); LATER this might be
 negotiated via caps as well...
+
+
+--- FORKS ---
+this code could be considered a fork from the "v4lsink" project
+(http://code.google.com/p/v4lsink/).
+here's the reasons for the fork (most important first)
+- v4lsink uses hardcoded values
+	v4lsink has both the loopback device hardcoded to /dev/video1 and the
+	dimensions hardcoded to 640x480;
+	first off, my loopback device is anything but /dev/video1, and i don't
+	want to recompile everytime i this changes
+	2nd, i don't know yet, but i guess i want variable dimensions as well
+- v4lsink is written in vala
+	i currently don't have the time to learn another language; i'm a
+	C-hacker; given that vala generates C-code which is then compiled, i
+	found myself staring at the generated C-code more often than at the
+	actual source code. this is not how i think, programming should be done.
+- v4lsink doesn't produce a gstreamer element, but rather a wrapper application
+	i want to launch
+	$ gst-launch videosrc ! v4l2loopback
+	rather than
+	$ v4l2sink 'videosrc ! V4l2Loopback'
+	we already have a launcher, why do we need another one; and how to use
+	the pipeline in other frameworks?
+	note: this is mainly due to the way how everything compiles; if i knew
+	more about vala (see above), it would certainly be possibly to generate
+	a nice gst-element as well...
