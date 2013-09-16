@@ -1,6 +1,23 @@
 v4l2loopback - gstreamer sink to write into v4l2 loopback devices
 =================================================================
 
+
+******************************************************************
+***                                                            ***
+*                        IMPORTANT NOTICE                        *
+*                                                                *
+******************************************************************
+*                                                                *
+*  "gst-v4l2loopback" is OBSOLETE, you do not need it anymore.   *
+*                                                                *
+* instead, use the built-in GStreamer-module 'v4l2sink' with the *
+* recent 'v4l2loopback' kernel module as found on                *
+*   https://github.com/umlaeute/v4l2loopback                     *
+*                                                                *
+***                                                            ***
+******************************************************************
+
+
 --- PREREQUISITES ---
 you need a linux-kernel that has v4l2 support (anything >=2.6.0).
 
